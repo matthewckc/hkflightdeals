@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>✈️ 智能平價機票搜尋艙</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans">
+    <div class="max-w-6xl mx-auto p-6">
+        <h1 class="text-3xl font-bold mb-6 text-center text-blue-600">✈️ 智能平價機票搜尋艙</h1>
+        
+        <div class="bg-white p-6 rounded-xl shadow-sm mb-8 grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div>
+                <label class="block text-sm font-medium mb-1">目的地 (機場代碼)</label>
+                <input type="text" id="destInput" class="w-full p-2 border rounded" placeholder="如: NRT">
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">地區</label>
+                <select id="regionSelect" class="w-full p-2 border rounded">
+                    <option value="全部">全部</option>
+                    <option value="東北亞">東北亞</option>
+                    <option value="東南亞">東南亞</option>
+                    <option value="歐洲">歐洲</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">預算上限 (HKD)</label>
+                <input type="number" id="budgetInput" class="w-full p-2 border rounded" value="10000">
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">行程天數 (3-14天)</label>
+                <input type="range" id="durationInput" min="3" max="14" value="7" class="w-full mt-2">
+                <span id="durationVal" class="text-xs text-gray-500">預設: 7天</span>
+            </div>
+            <div class="flex items-center pt-6">
+                <input type="checkbox" id="directCheck" class="mr-2 w-4 h-4">
+                <label for="directCheck" class="text-sm font-medium">只看直飛航班</label>
+            </div>
+        </div>
+
+        <div id="flightList" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <p class="text-center col-span-3 text-gray-500">正在加載今日平價機票...</p>
+        </div>
+    </div>
+
+    <script>
+        // 替換成你的 Supabase 憑證 (這裡允許放 anon public key)
+        const SUPABASE_URL = "你的_SUPABASE_URL";
+        const SUPABASE_KEY = "你的_SUPABASE_KEY";
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let allFlights = [];
+
+        async function loadFlights() {
+            const { data, error } = await supabase.from('flight_deals').select('*').order('price', { ascending: true });
+            if (!error) {
+                allFlights = data;
+                renderFlights();
+            }
+        }
+
+        function renderFlights() {
+            const dest = document.getElementById('destInput').value.toUpperCase();
+            const region = document.getElementById('regionSelect').value;
+            const budget = parseFloat(document.getElementById('budgetInput').value) || 99999;
+            const duration = parseInt(document.getElementById('durationInput').value);
+            const directOnly = document.getElementById('directCheck').checked;
+
+            document.getElementById('durationVal').innerText = `天數: ${duration} 天`;
+
+            const filtered = allFlights.filter(f => {
+                if (dest && !f.destination.includes(dest)) return false;
+                if (region !== '全部' && f.region !== region) return false;
+                if (f.price > budget) return false;
+                // 用戶輸入目的地時，精準篩選該天數；沒輸入時顯示所有 3-14 天
+                if (dest && f.duration_days !== duration) return false;
+                if (directOnly && !f.is_direct) return false;
+                return true;
+            });
+
+            const listHtml = filtered.map(f => `
+                <div class="bg-white border border-gray-100 p-5 rounded-xl shadow-sm hover:shadow-md transition flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="font-bold text-xl text-gray-800">${f.origin} ➔ ${f.destination}</span>
+                            <span class="bg-blue-50 text-blue-600 text-xs px-2.5 py-1 rounded-full font-medium">${f.region}</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mb-1">📅 出發日期：<b>${f.departure_date}</b></p>
+                        <p class="text-sm text-gray-600 mb-2">📅 回程日期：<b>${f.return_date}</b> (${f.duration_days}天行程)</p>
+                        <span class="text-xs ${f.is_direct ? 'text-green-600 bg-green-50' : 'text-amber-600 bg-amber-50'} px-2 py-0.5 rounded">
+                            ${f.is_direct ? '🟢 直飛航班' : '🟡 需轉機'}
+                        </span>
+                    </div>
+                    <div class="mt-5 pt-4 border-t border-gray-50 flex justify-between items-center">
+                        <span class="text-2xl font-black text-red-500">$${f.price} <span class="text-xs text-gray-400 font-normal">起</span></span>
+                        <a href="${f.booking_url}" target="_blank" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+                            Google訂票
+                        </a>
+                    </div>
+                </div>
+            `).join('');
+
+            document.getElementById('flightList').innerHTML = listHtml || '<p class="text-center col-span-3 text-gray-400 py-10">找不到符合條件的平價機票 🔍</p>';
+        }
+
+        // 綁定篩選事件
+        document.getElementById('destInput').addEventListener('input', renderFlights);
+        document.getElementById('regionSelect').addEventListener('change', renderFlights);
+        document.getElementById('budgetInput').addEventListener('input', renderFlights);
+        document.getElementById('durationInput').addEventListener('input', renderFlights);
+        document.getElementById('directCheck').addEventListener('change', renderFlights);
+
+        window.onload = loadFlights;
+    </script>
+</body>
+</html>
