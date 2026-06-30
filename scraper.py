@@ -10,20 +10,22 @@ url: str = os.environ.get("SUPABASE_URL")
 key: str = os.environ.get("SUPABASE_KEY")
 supabase: Client = create_client(url, key)
 
-# 💡 優化：現在直接接收已經建立好的 page 物件，不再重複開關瀏覽器
-async def scrape_google_flights(page, origin, dest, dep_date, ret_date, price_ceiling):
-    # 💡 修正：使用標準的 Google Flights 自然語言 ?q= 參數構造網址
+# 💡 修正 1：參數新增 region，確保資料完整度
+async def scrape_google_flights(page, origin, dest, region, dep_date, ret_date, price_ceiling):
     search_url = f"https://www.google.com/travel/flights?q=Flights%20to%20{dest}%20from%20{origin}%20on%20{dep_date}%20through%20{ret_date}&hl=zh-TW&curr=HKD"
     
     try:
-        # 導向網址並等待網路空閒
         await page.goto(search_url, wait_until="networkidle", timeout=15000)
+        
+        # 💡 優化：抵達網頁後強制靜止等待 1.5 秒，給 Google 豐富的動態組件完整的渲染時間
+        await page.wait_for_timeout(1500)
         
         selectors = ["li.pIav2d", "[role='listitem']", ".pI9YTe"]
         list_item_selector = None
         for selector in selectors:
             try:
-                await page.wait_for_selector(selector, timeout=2500)
+                # 💡 優化：將單個選擇器的超時拉長至 4000ms，對抗 GitHub 環境的網路延遲
+                await page.wait_for_selector(selector, timeout=4000)
                 list_item_selector = selector
                 break
             except:
@@ -49,15 +51,21 @@ async def scrape_google_flights(page, origin, dest, dep_date, ret_date, price_ce
                 
                 # ⚖️ 【核心平價過濾邏輯】
                 if price <= price_ceiling or has_low_badge:
+                    # 💡 修正 2：在回傳的資料中補上 "region" 鍵值，徹底解決資料庫約束報錯！
                     return {
-                        "origin": origin, "destination": dest, "departure_date": dep_date, "return_date": ret_date,
+                        "origin": origin, 
+                        "destination": dest, 
+                        "region": region,
+                        "departure_date": dep_date, 
+                        "return_date": ret_date,
                         "duration_days": (datetime.strptime(ret_date, "%Y-%m-%d") - datetime.strptime(dep_date, "%Y-%m-%d")).days,
-                        "price": price, "is_direct": is_direct, "booking_url": search_url
+                        "price": price, 
+                        "is_direct": is_direct, 
+                        "booking_url": search_url
                     }
                 else:
                     print(f"   ⏩ 略過: 價格 ${price} 未達平時低價標準 (基準線: ${price_ceiling})")
     except Exception as e:
-        # 💡 拒絕隱盲！發生錯誤一定要印出來
         print(f"   ❌ 監測過程中發生異常: {str(e)}")
         
     return None
@@ -154,7 +162,7 @@ async def main():
     out_days_offset = 8
     dep = (today + timedelta(days=out_days_offset)).strftime("%Y-%m-%d")
 
-    # 💡 核心優化：將瀏覽器生命週期拉到最外層，全程只初始化一次！
+    # 將瀏覽器生命週期拉到最外層，全程只初始化一次
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         context = await browser.new_context(
@@ -169,8 +177,8 @@ async def main():
             for duration in range(3, 15):
                 ret = (today + timedelta(days=out_days_offset + duration)).strftime("%Y-%m-%d")
                 
-                # 💡 傳入同一個 page 物件進行高效頁面切換
-                data = await scrape_google_flights(page, origin, dest["code"], dep, ret, dest["ceil"])
+                # 💡 修正 3：呼叫函數時同步傳入 dest["region"]
+                data = await scrape_google_flights(page, origin, dest["code"], dest["region"], dep, ret, dest["ceil"])
                 
                 if data:
                     try:
