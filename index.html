@@ -1,181 +1,191 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>全球平價機票追蹤監控面板</title>
+    <title>✈️ 全球 70 大城市平價機票監測艙</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.js"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        .tab-active {
-            border-bottom-width: 4px;
-            border-color: #ef4444;
-            color: #ef4444;
-            font-weight: 700;
-        }
-    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 </head>
-<body class="bg-gray-50 font-sans pb-12">
+<body class="bg-gray-50 text-gray-800 font-sans antialiased">
 
-    <nav class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16 items-center">
-                <div class="flex items-center space-x-3">
-                    <i class="fa-solid fa-plane-departure text-red-500 text-2xl"></i>
-                    <span class="text-xl font-black text-gray-800 tracking-wider">FLIGHTS SPY</span>
-                </div>
-                <div class="text-sm text-gray-500 id="update-time">每晚 00:00 自動更新</div>
-            </div>
-        </div>
-    </nav>
-
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+    <div class="max-w-6xl mx-auto px-4 py-8">
+        <header class="text-center mb-8">
+            <span class="bg-emerald-50 text-emerald-600 text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full">Global Flight Tracker</span>
+            <h1 class="text-4xl font-black text-gray-900 tracking-tight mt-3 mb-2">🌍 全球 70 大航點特搜艙</h1>
+            <p class="text-gray-500">每日更新 • 精準篩選 3 至 14 天完美行程</p>
+        </header>
         
-        <div class="flex border-b border-gray-200 mb-8 bg-white rounded-t-lg shadow-sm">
-            <button id="tab-all" onclick="switchTab('all')" class="flex-1 py-4 text-center text-gray-600 hover:text-red-500 font-medium transition-all duration-200 tab-active">
-                <i class="fa-solid fa-globe mr-2"></i>全部地區機票
-            </button>
-            <button id="tab-deals" onclick="switchTab('deals')" class="flex-1 py-4 text-center text-gray-600 hover:text-red-600 font-medium transition-all duration-200">
-                <i class="fa-solid fa-fire- flame text-red-500 mr-2"></i>🔥 特惠機票 (看最低價/地區)
-            </button>
-        </div>
+        <section class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mb-8 space-y-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">📍 搜尋目的地</label>
+                    <input type="text" id="destInput" class="w-full p-3 bg-gray-50 border border-gray-100 rounded-2xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all" placeholder="機場代碼 (如: NRT, TPE)">
+                </div>
 
-        <div id="flight-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div class="col-span-full text-center py-12">
-                <i class="fa-solid fa-circle-notch animate-spin text-4xl text-red-500 mb-4"></i>
-                <p class="text-gray-500">正在從 Supabase 捕捉最新平價機票...</p>
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">📅 預期出發日 (或之後)</label>
+                    <input type="date" id="dateInput" class="w-full p-3 bg-gray-50 border border-gray-100 rounded-2xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all">
+                </div>
+
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider">💰 預算上限 (HKD)</label>
+                        <span id="budgetVal" class="text-sm font-black text-blue-600">$15,000</span>
+                    </div>
+                    <input type="range" id="budgetInput" min="1000" max="25000" step="500" value="15000" class="w-full accent-blue-600 mt-2">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">📊 列表排序方式</label>
+                    <select id="sortSelect" class="w-full p-3 bg-gray-50 border border-gray-100 rounded-2xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all font-medium">
+                        <option value="price_asc">💰 價錢：由低至高</option>
+                        <option value="alpha_asc">🔤 機場代碼：A - Z</option>
+                    </select>
+                </div>
+
+                <div class="flex items-center sm:pt-6">
+                    <label for="directCheck" class="flex items-center cursor-pointer select-none bg-gray-50 hover:bg-gray-100 px-4 py-3 rounded-2xl w-full transition-colors border border-gray-100">
+                        <input type="checkbox" id="directCheck" class="w-5 h-5 text-blue-600 border-gray-300 rounded-xl focus:ring-blue-500 mr-3">
+                        <span class="text-sm font-bold text-gray-700">⚡ 只看直飛航班</span>
+                    </label>
+                </div>
             </div>
-        </div>
-    </main>
+
+            <div class="border-t border-gray-50 pt-4">
+                <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">🌐 區域快捷篩選</label>
+                <div class="flex flex-wrap gap-2" id="regionBtnGroup">
+                    <button class="region-btn bg-blue-600 text-white text-sm font-bold px-4 py-2 rounded-xl transition-all shadow-sm" data-region="全部">全部地區</button>
+                    <button class="region-btn bg-gray-100 text-gray-600 hover:bg-gray-200 text-sm font-bold px-4 py-2 rounded-xl transition-all" data-region="台灣">台灣</button>
+                    <button class="region-btn bg-gray-100 text-gray-600 hover:bg-gray-200 text-sm font-bold px-4 py-2 rounded-xl transition-all" data-region="東北亞">東北亞 (日韓)</button>
+                    <button class="region-btn bg-gray-100 text-gray-600 hover:bg-gray-200 text-sm font-bold px-4 py-2 rounded-xl transition-all" data-region="東南亞">東南亞</button>
+                    <button class="region-btn bg-gray-100 text-gray-600 hover:bg-gray-200 text-sm font-bold px-4 py-2 rounded-xl transition-all" data-region="中國內地">中國內地</button>
+                    <button class="region-btn bg-gray-100 text-gray-600 hover:bg-gray-200 text-sm font-bold px-4 py-2 rounded-xl transition-all" data-region="歐洲">歐洲地區</button>
+                    <button class="region-btn bg-gray-100 text-gray-600 hover:bg-gray-200 text-sm font-bold px-4 py-2 rounded-xl transition-all" data-region="美洲">美洲地區</button>
+                    <button class="region-btn bg-gray-100 text-gray-600 hover:bg-gray-200 text-sm font-bold px-4 py-2 rounded-xl transition-all" data-region="大洋洲">大洋洲</button>
+                    <button class="region-btn bg-gray-100 text-gray-600 hover:bg-gray-200 text-sm font-bold px-4 py-2 rounded-xl transition-all" data-region="中東與其他">中東/其他</button>
+                </div>
+            </div>
+        </section>
+
+        <main id="flightList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div class="col-span-full text-center py-20">
+                <div class="animate-spin inline-block w-8 h-8 border-[3px] border-current border-t-transparent text-blue-600 rounded-full mb-4"></div>
+                <p class="text-gray-400 font-medium">正在為您搜羅全球 70 大城市的平價金庫...</p>
+            </div>
+        </main>
+    </div>
 
     <script>
-        // 🔧 請替換成你自己的 Supabase 設定
-        const SUPABASE_URL = "YOUR_SUPABASE_URL"; 
-        const SUPABASE_KEY = "YOUR_SUPABASE_KEY";
+        // ⚠️ 請在此處填入你的 Supabase 憑證（使用 anon public key）
+        const SUPABASE_URL = "你的_SUPABASE_URL"; 
+        const SUPABASE_KEY = "你的_ANON_PUBLIC_KEY"; 
+        
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
         let allFlights = [];
-        let currentTab = 'all'; // 'all' 或 'deals'
+        let currentRegion = "全部";
 
-        // 撈取資料庫數據
-        async function fetchFlights() {
+        async function loadFlights() {
             try {
                 const { data, error } = await supabase
                     .from('flight_deals')
-                    .select('*')
-                    .order('created_at', { ascending: false });
+                    .select('*');
 
                 if (error) throw error;
                 allFlights = data || [];
                 renderFlights();
             } catch (err) {
-                console.error("讀取失敗:", err);
-                document.getElementById('flight-container').innerHTML = `
-                    <div class="col-span-full text-center py-12 text-red-500">
-                        <i class="fa-solid fa-circle-exclamation text-4xl mb-2"></i>
-                        <p>資料讀取失敗，請檢查 Supabase 連線設定。</p>
+                console.error("資料撈取失敗:", err);
+                document.getElementById('flightList').innerHTML = `
+                    <div class="col-span-full text-center py-10 bg-red-50 text-red-600 rounded-2xl font-bold">
+                        ❌ 連線失敗，請檢查 index.html 是否正確設定 URL 與 ANON_KEY。
                     </div>`;
             }
         }
 
-        // 🌟 標籤切換邏輯
-        function switchTab(tab) {
-            currentTab = tab;
-            
-            // 切換按鈕樣式
-            document.getElementById('tab-all').classList.toggle('tab-active', tab === 'all');
-            document.getElementById('tab-deals').classList.toggle('tab-active', tab === 'deals');
-            
-            renderFlights();
-        }
-
-        // 🎨 渲染卡片至網頁
         function renderFlights() {
-            const container = document.getElementById('flight-container');
-            container.innerHTML = '';
+            const dest = document.getElementById('destInput').value.trim().toUpperCase();
+            const filterDate = document.getElementById('dateInput').value;
+            const maxBudget = parseFloat(document.getElementById('budgetInput').value) || Infinity;
+            const directOnly = document.getElementById('directCheck').checked;
+            const sortMethod = document.getElementById('sortSelect').value;
 
-            let displayFlights = [...allFlights];
+            document.getElementById('budgetVal').innerText = `$${maxBudget.toLocaleString()}`;
 
-            // 💡 如果選取「特惠機票」標籤：將價格由低到高嚴格排序，突出最低票價與地區
-            if (currentTab === 'deals') {
-                displayFlights.sort((a, b) => a.price - b.price);
+            // 1. 過濾邏輯
+            let filtered = allFlights.filter(f => {
+                if (dest && !f.destination.toUpperCase().includes(dest)) return false;
+                if (currentRegion !== '全部' && f.region !== currentRegion) return false;
+                if (f.price > maxBudget) return false;
+                if (directOnly && !f.is_direct) return false;
+                if (filterDate && new Date(f.departure_date) < new Date(filterDate)) return false;
+                return true;
+            });
+
+            // 2. 🌟 排序邏輯（實時切換）
+            if (sortMethod === 'price_asc') {
+                filtered.sort((a, b) => a.price - b.price); // 價錢低至高
+            } else if (sortMethod === 'alpha_asc') {
+                filtered.sort((a, b) => a.destination.localeCompare(b.destination)); // 機場代碼 A-Z
             }
 
-            if (displayFlights.length === 0) {
-                container.innerHTML = `
-                    <div class="col-span-full text-center py-12 text-gray-400">
-                        <i class="fa-solid fa-folder-open text-4xl mb-2"></i>
-                        <p>目前暫無相關機票數據。</p>
-                    </div>`;
-                return;
-            }
-
-            displayFlights.forEach(flight => {
-                const card = document.createElement('div');
-                card.className = "bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow duration-300 flex flex-col justify-between";
-                
-                // 🛫 格式化日期
-                const depDate = new Date(flight.departure_date).toLocaleDateString('zh-HK', {month:'short', day:'numeric', weekday:'short'});
-                const retDate = new Date(flight.return_date).toLocaleDateString('zh-HK', {month:'short', day:'numeric', weekday:'short'});
-
-                card.innerHTML = `
-                    <div class="p-6">
+            // 3. 生成網頁卡片
+            const listHtml = filtered.map(f => `
+                <div class="bg-white border border-gray-100 p-6 rounded-2xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between">
+                    <div>
                         <div class="flex justify-between items-center mb-4">
-                            <span class="bg-gray-100 text-gray-700 text-xs px-2.5 py-1 rounded-full font-medium">
-                                <i class="fa-solid fa-map-pin mr-1 text-gray-400"></i>${flight.region || '其他區域'}
-                            </span>
-                            <span class="bg-red-50 text-red-600 text-xs px-2.5 py-1 rounded-full font-bold border border-red-100 animate-pulse">
-                                🔥 特惠精選
-                            </span>
+                            <span class="font-black text-2xl tracking-wide text-gray-800">${f.origin} <span class="text-blue-500 font-light text-xl">➔</span> ${f.destination}</span>
+                            <span class="bg-blue-50 text-blue-600 text-xs px-3 py-1 rounded-full font-bold">${f.region}</span>
                         </div>
-
-                        <div class="flex items-center justify-between mb-4">
-                            <div class="text-center">
-                                <p class="text-2xl font-black text-gray-800 tracking-wide">${flight.origin}</p>
-                                <p class="text-xs text-gray-400">香港</p>
-                            </div>
-                            <div class="flex flex-col items-center flex-1 px-4">
-                                <span class="text-xs text-gray-400 font-medium mb-1">${flight.duration_days} 天行程</span>
-                                <div class="w-full h-0.5 bg-gray-200 relative">
-                                    <div class="absolute -top-1 left-1/2 transform -translate-x-1/2 bg-white px-1">
-                                        <i class="fa-solid fa-plane text-gray-300 text-xs"></i>
-                                    </div>
-                                </div>
-                                <span class="text-xs ${flight.is_direct ? 'text-green-600 font-semibold' : 'text-gray-400'} mt-1">
-                                    ${flight.is_direct ? '直飛航班' : '需轉機'}
-                                </span>
-                            </div>
-                            <div class="text-center">
-                                <p class="text-2xl font-black text-gray-800 tracking-wide">${flight.destination}</p>
-                                <p class="text-xs text-red-500 font-bold">${flight.destination_name || '目的地'}</p>
-                            </div>
-                        </div>
-
-                        <div class="bg-gray-50 rounded-lg p-3 text-sm text-gray-600 space-y-1">
-                            <div class="flex justify-between"><span class="text-gray-400">去程：</span><span class="font-medium">${depDate}</span></div>
-                            <div class="flex justify-between"><span class="text-gray-400">回程：</span><span class="font-medium">${retDate}</span></div>
+                        <div class="space-y-2 text-sm text-gray-600 mb-4">
+                            <p class="flex items-center"><span class="mr-2">🛫</span>出發：<b class="text-gray-900">${f.departure_date}</b></p>
+                            <p class="flex items-center"><span class="mr-2">🛬</span>回程：<b class="text-gray-900">${f.return_date}</b></p>
+                            <p class="text-xs bg-gray-50 border border-gray-100 text-gray-500 inline-block px-2.5 py-1 rounded-lg font-medium">⏱️ 旅程總計：${f.duration_days} 天</p>
                         </div>
                     </div>
-
-                    <div class="px-6 pb-6 pt-2 border-t border-gray-50 flex items-center justify-between">
+                    
+                    <div class="mt-6 pt-4 border-t border-gray-50 flex justify-between items-center">
                         <div>
-                            <span class="text-xs text-gray-400 block">最平票價 (往返連稅)</span>
-                            <span class="inline-block bg-red-600 text-white font-black text-xl px-3 py-1 rounded shadow-sm mt-1">
-                                HK$ ${Number(flight.price).toLocaleString()}
-                            </span>
+                            <span class="block text-xs font-bold text-gray-400 uppercase">含稅總價</span>
+                            <span class="text-3xl font-black text-rose-500">$${f.price.toLocaleString()} <span class="text-xs text-gray-400 font-normal">HKD</span></span>
                         </div>
-                        <a href="${flight.booking_url}" target="_blank" class="bg-gray-900 hover:bg-red-600 text-white text-sm font-bold px-4 py-2.5 rounded-lg shadow-sm hover:shadow transition-all duration-200">
-                            立即開票 <i class="fa-solid fa-arrow-right text-xs ml-1"></i>
+                        <a href="${f.booking_url}" target="_blank" rel="noopener noreferrer" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-colors">
+                            Google 訂票
                         </a>
                     </div>
-                `;
-                container.appendChild(card);
-            });
+                </div>
+            `).join('');
+
+            document.getElementById('flightList').innerHTML = listHtml || `
+                <div class="col-span-full text-center py-16 text-gray-400 bg-white rounded-2xl border border-dashed border-gray-200">
+                    <p class="text-lg font-bold mb-1">🔍 找不到符合當前條件的機票</p>
+                    <p class="text-sm">試著切換排序、調高預算或放寬日期限制！</p>
+                </div>`;
         }
 
-        // 頁面初始化
-        window.onload = fetchFlights;
+        // 地區按鈕點擊切換效果
+        document.querySelectorAll('.region-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.region-btn').forEach(b => {
+                    b.classList.remove('bg-blue-600', 'text-white', 'shadow-sm');
+                    b.classList.add('bg-gray-100', 'text-gray-600', 'hover:bg-gray-200');
+                });
+                this.classList.remove('bg-gray-100', 'text-gray-600', 'hover:bg-gray-200');
+                this.classList.add('bg-blue-600', 'text-white', 'shadow-sm');
+                
+                currentRegion = this.getAttribute('data-region');
+                renderFlights();
+            });
+        });
+
+        // 監聽所有篩選與排序元件的變化
+        document.getElementById('destInput').addEventListener('input', renderFlights);
+        document.getElementById('dateInput').addEventListener('change', renderFlights);
+        document.getElementById('budgetInput').addEventListener('input', renderFlights);
+        document.getElementById('directCheck').addEventListener('change', renderFlights);
+        document.getElementById('sortSelect').addEventListener('change', renderFlights);
+
+        window.onload = loadFlights;
     </script>
 </body>
 </html>
