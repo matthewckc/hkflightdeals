@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from playwright.async_api import async_playwright
 from supabase import create_client, Client
 
-# 初始化 Supabase 雲端資料庫
+# 初始化 Supabase
 url: str = os.environ.get("SUPABASE_URL")
 key: str = os.environ.get("SUPABASE_KEY")
 supabase: Client = create_client(url, key)
@@ -19,13 +19,12 @@ async def scrape_google_flights(origin, dest, dep_date, ret_date):
         )
         page = await context.new_page()
         
-        # 強制使用繁體中文與港幣結算
+        # 強制繁體中文與港幣結算
         search_url = f"https://www.google.com/travel/flights?q=Flights%20from%20{origin}%20to%20{dest}%20on%20{dep_date}%20through%20{ret_date}&hl=zh-TW&curr=HKD"
         
         try:
             await page.goto(search_url, wait_until="networkidle", timeout=12000)
             
-            # 多重選擇器防禦 Google 隨機更換 Class 名稱
             selectors = ["li.pIav2d", "[role='listitem']", ".pI9YTe"]
             list_item_selector = None
             for selector in selectors:
@@ -40,7 +39,6 @@ async def scrape_google_flights(origin, dest, dep_date, ret_date):
                 await browser.close()
                 return None
 
-            # 提取排序第一的最優/最平航班卡片
             first_flight = await page.locator(list_item_selector).first
             text_content = await first_flight.inner_text()
             
@@ -63,8 +61,8 @@ async def scrape_google_flights(origin, dest, dep_date, ret_date):
         return None
 
 async def main():
-    # 🌟 完整 70 個全球監測目的地名單 (含精準 IATA 代碼與區域劃分)
-    destinations = [
+    # 完整 70 個目的地數據庫
+    all_destinations = [
         {"code": "PVG", "name": "上海", "region": "中國內地"}, {"code": "PEK", "name": "北京", "region": "中國內地"},
         {"code": "TPE", "name": "台北", "region": "台灣"}, {"code": "RMQ", "name": "台中", "region": "台灣"}, {"code": "KHH", "name": "高雄", "region": "台灣"},
         {"code": "NRT", "name": "東京成田", "region": "東北亞"}, {"code": "HND", "name": "東京羽田", "region": "東北亞"},
@@ -101,28 +99,51 @@ async def main():
         {"code": "DXB", "name": "杜拜", "region": "中東與其他"}, {"code": "DOH", "name": "多哈", "region": "中東與其他"},
         {"code": "MLE", "name": "馬爾代夫", "region": "中東與其他"}
     ]
+
+    # 📅 判斷今天是星期幾 (Python 中 0=Mon, 1=Tue, ..., 6=Sun)
+    weekday = datetime.today().weekday()
     
+    # 建立星期幾對應的區域
+    weekday_map = {
+        0: ["台灣", "中國內地"],
+        1: ["東北亞"],
+        2: ["東南亞"],
+        3: ["歐洲"],
+        4: ["大洋洲"],
+        5: ["中東與其他"],
+        6: ["美洲"]
+    }
+    
+    target_regions = weekday_map.get(weekday, [])
+    print(f"📅 今天是星期 {weekday + 1}，排定執行的機票目標區域為: {target_regions}")
+
+    # 🧹 核心洗牌機制：如果是星期日 (6)，在執行搜尋前，先清空資料庫中累積了一週的舊資料
+    if weekday == 6:
+        print("🧼 偵測到今日為【星期日】，啟動每週定時大清洗，清空全庫舊機票數據...")
+        try:
+            supabase.table("flight_deals").delete().neq("id", 0).execute()
+            print("✅ 全庫歷史數據已成功清空！")
+        except Exception as e:
+            print(f"⚠️ 清空舊數據時出現提示: {e}")
+    else:
+        print("📥 今日非星期日，搜羅到的平價將會【滾雪球式累積】併入現有機票庫中。")
+
+    # 篩選出今天需要掃描的目的地
+    destinations = [d for d in all_destinations if d["region"] in target_regions]
+    print(f"📊 今日待掃描的城市總數: {len(destinations)} 個")
+
     origin = "HKG"
     today = datetime.today()
     
-    print("🧹 正在清空舊數據...")
-    try:
-        supabase.table("flight_deals").delete().neq("id", 0).execute()
-        print("✅ 舊數據清理完畢！")
-    except Exception as e:
-        print(f"ℹ️ 清理提示: {e}")
-
-    print(f"🚀 開始特搜全球 {len(destinations)} 個熱門航點...")
-    
-    # 精選 3 種出行方案 (短途4天、中途8天、長途12天)，完美兼顧 3-14 天範圍且防阻擋
+    # 保持完美的 3-14 天內出行方案抽樣
     travel_plans = [
-        {"out_days": 5, "duration": 4},   # 方案 A：下週出發玩 4 天
-        {"out_days": 12, "duration": 8},  # 方案 B：兩週後出發玩 8 天
-        {"out_days": 20, "duration": 12}  # 方案 C：三週後出發玩 12 天
+        {"out_days": 5, "duration": 4},   # 4天短途度假
+        {"out_days": 12, "duration": 8},  # 8天深度遊
+        {"out_days": 20, "duration": 12}  # 12天長途旅行
     ]
 
     for dest in destinations:
-        print(f"🛫 正在探測前往 【{dest['region']} - {dest['name']} ({dest['code']})】...")
+        print(f"🛫 正在探測 【{dest['name']} ({dest['code']})】...")
         
         for plan in travel_plans:
             dep = (today + timedelta(days=plan["out_days"])).strftime("%Y-%m-%d")
@@ -133,11 +154,11 @@ async def main():
                 data["region"] = dest["region"]
                 try:
                     supabase.table("flight_deals").insert(data).execute()
-                    print(f"   ➔ 💰 抓到平價: {dep} ({plan['duration']}天) 價格: ${data['price']}")
+                    print(f"   ➔ 💰 成功寫入! {dep} ({plan['duration']}天) 價格: ${data['price']}")
                 except Exception as db_err:
                     print(f"   ❌ 資料庫寫入失敗: {db_err}")
             
-            await asyncio.sleep(1.5) # 安全間隔
+            await asyncio.sleep(1.5)
 
 if __name__ == "__main__":
     asyncio.run(main())
