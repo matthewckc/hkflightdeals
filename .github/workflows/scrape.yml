@@ -10,16 +10,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
+    
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.10'
+        
     - name: Install Dependencies
       run: |
         pip install playwright supabase
         playwright install chromium
+        
     - name: Execute Scraper
       env:
         SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
         SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        PYTHONUNBUFFERED: "1" # 🌟 核心關鍵：強制 Python 即時輸出日誌，不進行快取快取
       run: python scraper.py
