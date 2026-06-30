@@ -2,7 +2,8 @@ name: Daily Flight Scraper
 
 on:
   schedule:
-    - cron: '0 18 * * *' # 每天香港時間凌晨 2:00 自動執行
+    # ⚠️ 國際標準時間 (UTC) 16:00 等於香港時間 (HKT) 跨夜的 00:00 (零時零分)
+    - cron: '0 16 * * *'
   workflow_dispatch: # 允許你手動點擊執行
 
 jobs:
