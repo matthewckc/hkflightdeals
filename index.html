@@ -47,8 +47,9 @@
 
     <script>
         // 替換成你的 Supabase 憑證 (這裡允許放 anon public key)
-        const SUPABASE_URL = "你的_SUPABASE_URL";
-        const SUPABASE_KEY = "你的_SUPABASE_KEY";
+        const SUPABASE_URL = "https://iiwcyovoycawodaxbjds.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlpd2N5b3ZveWNhd29kYXhiamRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4MjM5NDgsImV4cCI6MjA5ODM5OTk0OH0.scW4-57T7sJ1xIbAe2EM8V2DkBcCXLq1e143faUfMvw
+";
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let allFlights = [];
