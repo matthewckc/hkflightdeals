@@ -3,114 +3,173 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>✈️ 智能平價機票搜尋艙</title>
+    <title>✈️ 全球平價機票實時監測艙</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 </head>
-<body class="bg-gray-50 text-gray-800 font-sans">
-    <div class="max-w-6xl mx-auto p-6">
-        <h1 class="text-3xl font-bold mb-6 text-center text-blue-600">✈️ 智能平價機票搜尋艙</h1>
-        
-        <div class="bg-white p-6 rounded-xl shadow-sm mb-8 grid grid-cols-1 md:grid-cols-5 gap-4">
-            <div>
-                <label class="block text-sm font-medium mb-1">目的地 (機場代碼)</label>
-                <input type="text" id="destInput" class="w-full p-2 border rounded" placeholder="如: NRT">
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-1">地區</label>
-                <select id="regionSelect" class="w-full p-2 border rounded">
-                    <option value="全部">全部</option>
-                    <option value="東北亞">東北亞</option>
-                    <option value="東南亞">東南亞</option>
-                    <option value="歐洲">歐洲</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-1">預算上限 (HKD)</label>
-                <input type="number" id="budgetInput" class="w-full p-2 border rounded" value="10000">
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-1">行程天數 (3-14天)</label>
-                <input type="range" id="durationInput" min="3" max="14" value="7" class="w-full mt-2">
-                <span id="durationVal" class="text-xs text-gray-500">預設: 7天</span>
-            </div>
-            <div class="flex items-center pt-6">
-                <input type="checkbox" id="directCheck" class="mr-2 w-4 h-4">
-                <label for="directCheck" class="text-sm font-medium">只看直飛航班</label>
-            </div>
-        </div>
+<body class="bg-gray-50 text-gray-800 font-sans antialiased">
 
-        <div id="flightList" class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <p class="text-center col-span-3 text-gray-500">正在加載今日平價機票...</p>
-        </div>
+    <div class="max-w-6xl mx-auto px-4 py-8">
+        <header class="text-center mb-10">
+            <span class="bg-blue-50 text-blue-600 text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full">Flight Deals Web 克隆版</span>
+            <h1 class="text-4xl font-black text-gray-900 tracking-tight mt-3 mb-2">🌍 全球平價機票特搜艙</h1>
+            <p class="text-gray-500">不花一分錢 API 費用 • 每日全自動開源追蹤 • 鎖定 3 至 14 天完美假期</p>
+        </header>
+        
+        <section class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mb-8 space-y-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">📍 搜尋目的地</label>
+                    <input type="text" id="destInput" class="w-full p-3 bg-gray-50 border border-gray-100 rounded-2xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all" placeholder="輸入機場代碼 (如: NRT, LHR)">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">📅 預期出發日 (或之後)</label>
+                    <input type="date" id="dateInput" class="w-full p-3 bg-gray-50 border border-gray-100 rounded-2xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all">
+                </div>
+
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider">💰 預算上限 (HKD)</label>
+                        <span id="budgetVal" class="text-sm font-black text-blue-600">$12,000</span>
+                    </div>
+                    <input type="range" id="budgetInput" min="1500" max="15000" step="500" value="12000" class="w-full accent-blue-600 mt-2">
+                </div>
+
+                <div class="flex items-center sm:pt-6">
+                    <label for="directCheck" class="flex items-center cursor-pointer select-none bg-gray-50 hover:bg-gray-100 px-4 py-3 rounded-2xl w-full transition-colors border border-gray-100">
+                        <input type="checkbox" id="directCheck" class="w-5 h-5 text-blue-600 border-gray-300 rounded-xl focus:ring-blue-500 mr-3">
+                        <span class="text-sm font-bold text-gray-700">⚡ 只看直飛航班</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="border-t border-gray-50 pt-4">
+                <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">🌐 區域快捷篩選</label>
+                <div class="flex flex-wrap gap-2" id="regionBtnGroup">
+                    <button class="region-btn bg-blue-600 text-white text-sm font-bold px-5 py-2 rounded-xl transition-all shadow-sm" data-region="全部">全部地區</button>
+                    <button class="region-btn bg-gray-100 text-gray-600 hover:bg-gray-200 text-sm font-bold px-5 py-2 rounded-xl transition-all" data-region="東北亞">東北亞 (日韓)</button>
+                    <button class="region-btn bg-gray-100 text-gray-600 hover:bg-gray-200 text-sm font-bold px-5 py-2 rounded-xl transition-all" data-region="東南亞">東南亞 (泰馬新)</button>
+                    <button class="region-btn bg-gray-100 text-gray-600 hover:bg-gray-200 text-sm font-bold px-5 py-2 rounded-xl transition-all" data-region="歐洲">歐洲地區</button>
+                    <button class="region-btn bg-gray-100 text-gray-600 hover:bg-gray-200 text-sm font-bold px-5 py-2 rounded-xl transition-all" data-region="美洲">北美地區</button>
+                    <button class="region-btn bg-gray-100 text-gray-600 hover:bg-gray-200 text-sm font-bold px-5 py-2 rounded-xl transition-all" data-region="大洋洲">大洋洲</button>
+                </div>
+            </div>
+        </section>
+
+        <main id="flightList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div class="col-span-full text-center py-20">
+                <div class="animate-spin inline-block w-8 h-8 border-[3px] border-current border-t-transparent text-blue-600 rounded-full mb-4"></div>
+                <p class="text-gray-400 font-medium">正在為您連線全球機票金庫...</p>
+            </div>
+        </main>
     </div>
 
     <script>
-        // 替換成你的 Supabase 憑證 (這裡允許放 anon public key)
-        const SUPABASE_URL = "https://iiwcyovoycawodaxbjds.supabase.co";
-        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlpd2N5b3ZveWNhd29kYXhiamRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4MjM5NDgsImV4cCI6MjA5ODM5OTk0OH0.scW4-57T7sJ1xIbAe2EM8V2DkBcCXLq1e143faUfMvw
-";
+        // ⚠️ 請在此處替換成你的 Supabase 憑證（必須使用 anon public key）
+        const SUPABASE_URL = "你的_SUPABASE_URL"; 
+        const SUPABASE_KEY = "你的_ANON_PUBLIC_KEY"; 
+        
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
         let allFlights = [];
+        let currentRegion = "全部";
 
+        // 從雲端讀取今日最新機票
         async function loadFlights() {
-            const { data, error } = await supabase.from('flight_deals').select('*').order('price', { ascending: true });
-            if (!error) {
-                allFlights = data;
+            try {
+                const { data, error } = await supabase
+                    .from('flight_deals')
+                    .select('*')
+                    .order('price', { ascending: true });
+
+                if (error) throw error;
+                allFlights = data || [];
                 renderFlights();
+            } catch (err) {
+                console.error("資料獲取失敗:", err);
+                document.getElementById('flightList').innerHTML = `
+                    <div class="col-span-full text-center py-10 bg-red-50 text-red-600 rounded-2xl font-bold">
+                        ❌ 資料庫連線失敗，請檢查 index.html 中的 URL 與 ANON_KEY 是否正確。
+                    </div>`;
             }
         }
 
+        // 核心過濾與畫面渲染
         function renderFlights() {
-            const dest = document.getElementById('destInput').value.toUpperCase();
-            const region = document.getElementById('regionSelect').value;
-            const budget = parseFloat(document.getElementById('budgetInput').value) || 99999;
-            const duration = parseInt(document.getElementById('durationInput').value);
+            const dest = document.getElementById('destInput').value.trim().toUpperCase();
+            const filterDate = document.getElementById('dateInput').value;
+            const maxBudget = parseFloat(document.getElementById('budgetInput').value) || Infinity;
             const directOnly = document.getElementById('directCheck').checked;
 
-            document.getElementById('durationVal').innerText = `天數: ${duration} 天`;
+            // 更新預算文字顯示
+            document.getElementById('budgetVal').innerText = `$${maxBudget.toLocaleString()}`;
 
+            // 過濾演算法
             const filtered = allFlights.filter(f => {
-                if (dest && !f.destination.includes(dest)) return false;
-                if (region !== '全部' && f.region !== region) return false;
-                if (f.price > budget) return false;
-                // 用戶輸入目的地時，精準篩選該天數；沒輸入時顯示所有 3-14 天
-                if (dest && f.duration_days !== duration) return false;
+                if (dest && !f.destination.toUpperCase().includes(dest)) return false;
+                if (currentRegion !== '全部' && f.region !== currentRegion) return false;
+                if (f.price > maxBudget) return false;
                 if (directOnly && !f.is_direct) return false;
+                
+                // 日期過濾：只顯示出發日在用戶選擇日期「當天或之後」的機票
+                if (filterDate && new Date(f.departure_date) < new Date(filterDate)) return false;
+                
                 return true;
             });
 
+            // 轉化為 HTML 結構
             const listHtml = filtered.map(f => `
-                <div class="bg-white border border-gray-100 p-5 rounded-xl shadow-sm hover:shadow-md transition flex flex-col justify-between">
+                <div class="bg-white border border-gray-100 p-6 rounded-2xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between">
                     <div>
-                        <div class="flex justify-between items-center mb-3">
-                            <span class="font-bold text-xl text-gray-800">${f.origin} ➔ ${f.destination}</span>
-                            <span class="bg-blue-50 text-blue-600 text-xs px-2.5 py-1 rounded-full font-medium">${f.region}</span>
+                        <div class="flex justify-between items-center mb-4">
+                            <span class="font-black text-2xl tracking-wide text-gray-800">${f.origin} <span class="text-blue-500 font-light text-xl">➔</span> ${f.destination}</span>
+                            <span class="bg-blue-50 text-blue-600 text-xs px-3 py-1 rounded-full font-bold">${f.region}</span>
                         </div>
-                        <p class="text-sm text-gray-600 mb-1">📅 出發日期：<b>${f.departure_date}</b></p>
-                        <p class="text-sm text-gray-600 mb-2">📅 回程日期：<b>${f.return_date}</b> (${f.duration_days}天行程)</p>
-                        <span class="text-xs ${f.is_direct ? 'text-green-600 bg-green-50' : 'text-amber-600 bg-amber-50'} px-2 py-0.5 rounded">
-                            ${f.is_direct ? '🟢 直飛航班' : '🟡 需轉機'}
-                        </span>
+                        <div class="space-y-2 text-sm text-gray-600 mb-4">
+                            <p class="flex items-center"><span class="mr-2">🛫</span>出發：<b class="text-gray-900">${f.departure_date}</b></p>
+                            <p class="flex items-center"><span class="mr-2">🛬</span>回程：<b class="text-gray-900">${f.return_date}</b></p>
+                            <p class="text-xs bg-gray-50 border border-gray-100 text-gray-500 inline-block px-2.5 py-1 rounded-lg font-medium">⏱️ 旅程總計：${f.duration_days} 天 (符合3-14天規範)</p>
+                        </div>
                     </div>
-                    <div class="mt-5 pt-4 border-t border-gray-50 flex justify-between items-center">
-                        <span class="text-2xl font-black text-red-500">$${f.price} <span class="text-xs text-gray-400 font-normal">起</span></span>
-                        <a href="${f.booking_url}" target="_blank" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
-                            Google訂票
+                    
+                    <div class="mt-6 pt-4 border-t border-gray-100 flex justify-between items-center">
+                        <div>
+                            <span class="block text-xs font-bold text-gray-400 uppercase">全稅總價</span>
+                            <span class="text-3xl font-black text-rose-500">$${f.price.toLocaleString()} <span class="text-xs text-gray-400 font-normal">HKD</span></span>
+                        </div>
+                        <a href="${f.booking_url}" target="_blank" rel="noopener noreferrer" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-colors">
+                            Google 訂票
                         </a>
                     </div>
                 </div>
             `).join('');
 
-            document.getElementById('flightList').innerHTML = listHtml || '<p class="text-center col-span-3 text-gray-400 py-10">找不到符合條件的平價機票 🔍</p>';
+            document.getElementById('flightList').innerHTML = listHtml || `
+                <div class="col-span-full text-center py-16 text-gray-400 bg-white rounded-2xl border border-dashed border-gray-200">
+                    <p class="text-lg font-bold mb-1">🔍 翻遍了全艙，找不到符合條件的機票</p>
+                    <p class="text-sm">試著放寬預算上限、調整日期或切換到其他地區！</p>
+                </div>`;
         }
 
-        // 綁定篩選事件
+        // 地區按鈕切換邏輯
+        document.querySelectorAll('.region-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.region-btn').forEach(b => {
+                    b.classList.remove('bg-blue-600', 'text-white', 'shadow-sm');
+                    b.classList.add('bg-gray-100', 'text-gray-600', 'hover:bg-gray-200');
+                });
+                this.classList.remove('bg-gray-100', 'text-gray-600', 'hover:bg-gray-200');
+                this.classList.add('bg-blue-600', 'text-white', 'shadow-sm');
+                
+                currentRegion = this.getAttribute('data-region');
+                renderFlights();
+            });
+        });
+
+        // 監聽傳統輸入組件
         document.getElementById('destInput').addEventListener('input', renderFlights);
-        document.getElementById('regionSelect').addEventListener('change', renderFlights);
+        document.getElementById('dateInput').addEventListener('change', renderFlights);
         document.getElementById('budgetInput').addEventListener('input', renderFlights);
-        document.getElementById('durationInput').addEventListener('input', renderFlights);
         document.getElementById('directCheck').addEventListener('change', renderFlights);
 
         window.onload = loadFlights;
