@@ -77,17 +77,19 @@
     </div>
 
     <script>
-        // ⚠️ 請在此處填入你的 Supabase 憑證（使用 anon public key）
+        // ⚠️ 請在此處填入你的 Supabase 憑證
         const SUPABASE_URL = "你的_SUPABASE_URL"; 
         const SUPABASE_KEY = "你的_ANON_PUBLIC_KEY"; 
         
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // 🌟 修正點：將變數名稱改為 supabaseClient，避免與全域物件衝突
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         let allFlights = [];
         let currentRegion = "全部";
 
         async function loadFlights() {
             try {
-                const { data, error } = await supabase
+                // 🌟 修正點：使用 supabaseClient 進行查詢
+                const { data, error } = await supabaseClient
                     .from('flight_deals')
                     .select('*');
 
@@ -100,6 +102,8 @@
                     <div class="col-span-full text-center py-10 bg-red-50 text-red-600 rounded-2xl font-bold">
                         ❌ 連線失敗，請檢查 index.html 是否正確設定 URL 與 ANON_KEY。
                     </div>`;
+                // 即使資料庫載入失敗，也要初始化 Slider 文字，讓使用者介面依然可動
+                document.getElementById('budgetVal').innerText = `$${parseInt(document.getElementById('budgetInput').value).toLocaleString()}`;
             }
         }
 
@@ -113,11 +117,11 @@
             // 🌟 同步更新上方預算文字
             document.getElementById('budgetVal').innerText = `$${maxBudget.toLocaleString()}`;
 
-            // 1. 🔍 嚴格預算與條件過濾 (只保留小於等於 maxBudget 的機票)
+            // 1. 🔍 嚴格預算與條件過濾 (只保留預算範圍內的行程)
             let filtered = allFlights.filter(f => {
                 if (dest && !f.destination.toUpperCase().includes(dest)) return false;
                 if (currentRegion !== '全部' && f.region !== currentRegion) return false;
-                if (f.price > maxBudget) return false; // 👈 超過預算一律不顯示
+                if (f.price > maxBudget) return false; // 👈 核心：高於 Slider 設定的金額直接被砍掉
                 if (directOnly && !f.is_direct) return false;
                 if (filterDate && new Date(f.departure_date) < new Date(filterDate)) return false;
                 return true;
@@ -125,6 +129,75 @@
 
             // 2. 📊 排序邏輯
             if (sortMethod === 'price_asc') {
-                filtered.sort((a, b) => a.price
+                filtered.sort((a, b) => a.price - b.price); 
+            } else if (sortMethod === 'alpha_asc') {
+                filtered.sort((a, b) => a.destination.localeCompare(b.destination)); 
+            }
 
-                            
+            // 3. 🎨 生成卡片（特惠價格維持搶眼的紅底白字）
+            const listHtml = filtered.map(f => `
+                <div class="bg-white border border-gray-100 p-6 rounded-2xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-center mb-4">
+                            <span class="font-black text-2xl tracking-wide text-gray-800">${f.origin} <span class="text-blue-500 font-light text-xl">➔</span> ${f.destination}</span>
+                            <span class="bg-blue-50 text-blue-600 text-xs px-3 py-1 rounded-full font-bold">${f.region}</span>
+                        </div>
+                        <div class="space-y-2 text-sm text-gray-600 mb-4">
+                            <p class="flex items-center"><span class="mr-2">🛫</span>出發：<b class="text-gray-900">${f.departure_date}</b></p>
+                            <p class="flex items-center"><span class="mr-2">🛬</span>回程：<b class="text-gray-900">${f.return_date}</b></p>
+                            <p class="text-xs bg-gray-50 border border-gray-100 text-gray-500 inline-block px-2.5 py-1 rounded-lg font-medium">⏱️ 旅程總計：${f.duration_days} 天</p>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6 pt-4 border-t border-gray-50 flex justify-between items-center">
+                        <div>
+                            <span class="block text-xs font-bold text-gray-400 uppercase mb-1">含稅總價</span>
+                            <span class="inline-block bg-rose-600 text-white font-black text-xl px-3 py-1 rounded-xl shadow-sm">
+                                $${f.price.toLocaleString()} <span class="text-xs text-rose-100 font-normal">HKD</span>
+                            </span>
+                        </div>
+                        <a href="${f.booking_url}" target="_blank" rel="noopener noreferrer" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-colors">
+                            Google 訂票
+                        </a>
+                    </div>
+                </div>
+            `).join('');
+
+            document.getElementById('flightList').innerHTML = listHtml || `
+                <div class="col-span-full text-center py-16 text-gray-400 bg-white rounded-2xl border border-dashed border-gray-200">
+                    <p class="text-lg font-bold mb-1">🔍 找不到符合當前條件的機票</p>
+                    <p class="text-sm">試著切換排序、調高預算或放寬日期限制！</p>
+                </div>`;
+        }
+
+        // 地區按鈕點擊切換
+        document.querySelectorAll('.region-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.region-btn').forEach(b => {
+                    b.classList.remove('bg-blue-600', 'text-white', 'shadow-sm');
+                    b.classList.add('bg-gray-100', 'text-gray-600', 'hover:bg-gray-200');
+                });
+                this.classList.remove('bg-gray-100', 'text-gray-600', 'hover:bg-gray-200');
+                this.classList.add('bg-blue-600', 'text-white', 'shadow-sm');
+                
+                currentRegion = this.getAttribute('data-region');
+                renderFlights();
+            });
+        });
+
+        // 🌟 核心監聽：預算滑桿拉動時，數字即時變更，卡片立刻進行動態過濾
+        document.getElementById('budgetInput').addEventListener('input', function() {
+            document.getElementById('budgetVal').innerText = `$${parseFloat(this.value).toLocaleString()}`;
+            renderFlights();
+        });
+
+        // 其他基礎元件監聽
+        document.getElementById('destInput').addEventListener('input', renderFlights);
+        document.getElementById('dateInput').addEventListener('change', renderFlights);
+        document.getElementById('directCheck').addEventListener('change', renderFlights);
+        document.getElementById('sortSelect').addEventListener('change', renderFlights);
+
+        window.onload = loadFlights;
+    </script>
+</body>
+</html>
